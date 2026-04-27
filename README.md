@@ -1,5 +1,7 @@
 # Rivers Seas Oceans
 
+![CI/CD](https://github.com/remnasa/riversseasoceans/actions/workflows/ci.yml/badge.svg)
+
 Personal learning platform and portfolio at [riversseasoceans.org](https://riversseasoceans.org).
 
 ## Stack
