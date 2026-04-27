@@ -1,4 +1,15 @@
+import { useEffect, useState } from 'react'
+
 export default function Home() {
+  const [status, setStatus] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/health')
+      .then((r) => r.json())
+      .then((data) => setStatus(data.status))
+      .catch(() => setStatus('error'))
+  }, [])
+
   return (
     <main style={styles.main}>
       <div style={styles.card}>
@@ -9,6 +20,11 @@ export default function Home() {
         <nav style={styles.nav}>
           <a href="/blog" style={styles.link}>Blog</a>
         </nav>
+        {status && (
+          <p style={styles.status}>
+            api: {status}
+          </p>
+        )}
       </div>
     </main>
   )
@@ -47,5 +63,11 @@ const styles = {
     textDecoration: 'none',
     fontSize: '1rem',
     letterSpacing: '0.05em',
+  },
+  status: {
+    marginTop: '2rem',
+    fontSize: '0.75rem',
+    opacity: 0.4,
+    letterSpacing: '0.1em',
   },
 }
