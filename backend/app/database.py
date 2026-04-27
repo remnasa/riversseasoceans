@@ -1,0 +1,20 @@
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
+
+from app.config import settings
+
+DATABASE_URL = (
+    f"postgresql+asyncpg://rso_user:{settings.db_password}@localhost:5432/rso"
+)
+
+engine = create_async_engine(DATABASE_URL, echo=settings.debug)
+AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+async def get_db() -> AsyncSession:
+    async with AsyncSessionLocal() as session:
+        yield session
