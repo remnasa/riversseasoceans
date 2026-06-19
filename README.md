@@ -7,7 +7,7 @@ Personal learning platform and portfolio at [riversseasoceans.org](https://river
 ## Stack
 
 - **Backend:** FastAPI + Uvicorn + SQLAlchemy + Alembic + PostgreSQL
-- **Frontend:** React + Vite
+- **Frontend:** React 19 + Vite + React Router + react-markdown
 - **Infra:** DigitalOcean droplet, Nginx, Let's Encrypt SSL
 
 ## Architecture
@@ -22,7 +22,7 @@ Nginx (port 443, SSL)
 
 ## Local Development
 
-**Prerequisites:** Python 3.11+, Node 20+
+**Prerequisites:** Python 3.11+, Node 24+
 
 ```bash
 # Terminal 1 — backend
@@ -63,53 +63,72 @@ alembic upgrade head
 alembic revision --autogenerate -m "description"
 ```
 
-## Deploying to Production
+## CI/CD
+
+On every push to `main`, GitHub Actions runs:
+
+1. **Test** — `ruff check` + `pytest`
+2. **Build** — `npm run build` (Node 24)
+3. **Deploy** — SSH into the server, pull, install deps, run migrations, rebuild frontend, restart Uvicorn
+
+Manual deploy (if needed):
 
 ```bash
-# SSH into server
 ssh remnasa@164.92.86.239
-
-# Pull latest code
 cd ~/riversseasoceans
 git pull
-
-# If backend changed
+source venv/bin/activate
+pip install -r backend/requirements.txt
+cd backend && alembic upgrade head
+cd ~/riversseasoceans/frontend && npm install && npm run build
 sudo systemctl restart uvicorn
-
-# If frontend changed
-cd frontend
-npm run build
-
-# If migrations needed
-cd ../backend
-source ../venv/bin/activate
-alembic upgrade head
 ```
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/health` | Health check |
+| `GET` | `/api/posts` | List published posts (newest first) |
+| `GET` | `/api/posts/{slug}` | Get a single published post by slug |
 
 ## Project Structure
 
 ```
 riversseasoceans/
+├── .github/
+│   └── workflows/
+│       └── ci.yml             # Test → build → deploy on push to main
 ├── backend/
 │   ├── app/
-│   │   ├── main.py        # FastAPI app
-│   │   ├── config.py      # Settings via env vars (pydantic-settings)
-│   │   ├── database.py    # SQLAlchemy async engine + Base
+│   │   ├── main.py            # FastAPI app entry point
+│   │   ├── config.py          # Settings via env vars (pydantic-settings)
+│   │   ├── database.py        # SQLAlchemy async engine + Base
 │   │   ├── routers/
-│   │   │   └── health.py  # GET /api/health
-│   │   ├── models/        # ORM models (added per feature)
-│   │   └── schemas/       # Pydantic schemas (added per feature)
+│   │   │   ├── health.py      # GET /api/health
+│   │   │   └── posts.py       # GET /api/posts, GET /api/posts/{slug}
+│   │   ├── models/
+│   │   │   └── post.py        # Post ORM model
+│   │   └── schemas/
+│   │       └── post.py        # PostResponse Pydantic schema
 │   ├── tests/
-│   │   └── test_main.py
-│   ├── alembic/           # DB migrations
+│   │   ├── conftest.py        # Async test client + in-memory SQLite DB
+│   │   ├── test_main.py       # Health endpoint tests
+│   │   └── test_posts.py      # Posts endpoint tests
+│   ├── alembic/               # DB migrations
 │   ├── alembic.ini
-│   ├── pyproject.toml     # Ruff + pytest config
+│   ├── pyproject.toml         # Ruff + pytest config
 │   └── requirements.txt
 └── frontend/
     ├── src/
-    │   ├── App.jsx
+    │   ├── main.jsx            # React entry point
+    │   ├── App.jsx             # React Router — / /blog /blog/:slug
+    │   ├── App.css
+    │   ├── index.css
     │   ├── pages/
-    │   │   └── Home.jsx
-    │   └── index.css
-    └── vite.config.js     # /api proxy → :8000 in dev
+    │   │   ├── Home.jsx        # Landing page
+    │   │   ├── BlogList.jsx    # GET /api/posts → list of posts
+    │   │   └── PostDetail.jsx  # GET /api/posts/:slug → Markdown post
+    │   └── assets/
+    └── vite.config.js          # /api proxy → :8000 in dev
 ```
