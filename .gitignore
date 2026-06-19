@@ -27,6 +27,9 @@ frontend/dist/
 frontend/.vite/
 *.local
 
+# Local session journal (never committed — history lives here between sessions)
+.claude/journal/
+
 # OS
 .DS_Store
 Thumbs.db
