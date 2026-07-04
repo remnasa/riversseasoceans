@@ -72,7 +72,7 @@ jobs:
             cd ~/riversseasoceans/frontend && npm install && npm run build
             sudo systemctl restart uvicorn
             sleep 5
-            if curl -sf http://localhost/health; then
+            if curl -sf --unix-socket /run/uvicorn/uvicorn.sock http://localhost/api/health; then
               echo "Health check passed — deploy successful"
               exit 0
             else
