@@ -17,6 +17,14 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Install backend dependencies
         run: pip install -r backend/requirements.txt
 
@@ -35,6 +43,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
         run: cd frontend && npm install
@@ -54,9 +64,23 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd ~/riversseasoceans
+            PREVIOUS_COMMIT=$(git rev-parse HEAD)
             git pull
             source venv/bin/activate
             pip install -r backend/requirements.txt
             cd backend && alembic upgrade head
             cd ~/riversseasoceans/frontend && npm install && npm run build
             sudo systemctl restart uvicorn
+            sleep 5
+            if curl -sf http://localhost/health; then
+              echo "Health check passed — deploy successful"
+              exit 0
+            else
+              echo "Health check failed — rolling back to $PREVIOUS_COMMIT"
+              cd ~/riversseasoceans
+              git checkout "$PREVIOUS_COMMIT"
+              source venv/bin/activate
+              pip install -r backend/requirements.txt
+              sudo systemctl restart uvicorn
+              exit 1
+            fi
